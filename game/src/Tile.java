@@ -33,7 +33,7 @@ import java.util.ArrayList;
  */
 public class Tile extends JPanel implements Serializable {
 
-    private static final Dimension TILE_DIMENSIONS_ = new Dimension (90, 90);
+    private static final Dimension TILE_DIMENSIONS_ = new Dimension (70, 70);
     private MouseHandler mouseHandler_ = new MouseHandler();
     
     private Content content_ = new Content();
@@ -79,26 +79,23 @@ public class Tile extends JPanel implements Serializable {
         
     }
     
-    /**
-     * This function is accessed from GameWindow when a reset is triggered.
-     * It accesses an ArrayList that has been populated with all original Content object
-     * information, and re-adds them to the original parent containers accordingly. 
-     * @param index is brought in from the loop in GameWindow, which signifies which tile
-     * originally housed a specific content object.
-     */
-    public void tileReset(int index) {
-        
-        setLayout(new BorderLayout());
-        add(contentInfo_.get(index));
-        revalidate();
-        repaint(); 
-        
-    }
     
+    /**
+     * This is a static getter for an ArrayList that contains Content info
+     * for each Tile object.
+     * @return contentInfo_, an ArrayList with original Content information.
+     */
     public static ArrayList<JComponent> getContentArray() {
         return contentInfo_;
     }
     
+    
+    /**
+     * This a static setter for an ArrayList that contains Content info
+     * for each Tile object.
+     * @param importedChanges, an ArrayList that contains changes made
+     * to the original contentInfo_ variable.
+     */
     public static void setContentArray(ArrayList<JComponent> importedChanges) {
         contentInfo_ = importedChanges;
     }

@@ -26,7 +26,7 @@ import java.io.Serializable;
  */
 public class Cell extends JPanel implements Serializable {
     
-    private static final Dimension CELL_DIMENSIONS_ = new Dimension(90, 90);
+    private static final Dimension CELL_DIMENSIONS_ = new Dimension(70, 70);
     private Color cellColors_ = new Color(1, 7, 91);
   
     private MouseHandler mouseHandler_ = new MouseHandler();

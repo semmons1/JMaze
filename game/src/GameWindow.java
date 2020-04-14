@@ -29,12 +29,22 @@ import java.io.*;
  * in it's appropriate method (addButtons).
  * @boardLayout_ is initialized as a private variable here, so that it may be used
  * in it's appropriate methods (all panel related methods).
+ * @tile_, a null variable related to the Tile class, to be used for object
+ * manipulation.
+ * @cell_, a null variable related to the Cell class, to be used for object
+ * manipulation.
+ * @content_, a null variable related to the Content class, to be used for
+ * objects manipulation.
  * @defaultTileIds_ is the array meant to hold our tile ID #'s, it must be
  * accessed by different panels, hence why it is declared here.
+ * @defaultRotations_ is a primitive array used to keep track of 
+ * original Theta values when components are first randomized.
  * @tileComponents_, an ArrayList that is used to keep track of all Tile 
  * objects at the time of their generation.
  * @cellComponents_, an ArrayList that is used to keep track of all Cell 
  * objects at the time of their generation.
+ * @randomComponents_, an ArrayList that is used to keep track of all 
+ * randomized Content objects at the time of their generation.
  */
 public class GameWindow extends JFrame implements ActionListener, Serializable {
     
@@ -90,18 +100,22 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
 	
     }
     
+    
     /**
-     * This function makes use of a Tile and Cell object to manipulate the positions
-     * of all Content objects, based on their original position.
-     * In other words, once this function is called, all content 
+     * This function makes use of Tile, Cell, and Content objects to manipulate the positions
+     * of all movable objects, based on their original position.
+     * In other words, once this function is called, all Content 
      * objects will return to their native Tile containers.
      */
     public void reset() {
         
         for (int i = 0; i < defaultTileIds_.length; i++) {
+            
            tile_ = (Tile) tileComponents_.get(i);
            content_ = (Content) randomComponents_.get(i);
+           
            int index = content_.getDefaultRotation();
+           
            content_.setRotateCount(index);
            tile_.add(content_);
            
@@ -110,7 +124,7 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
         }
         revalidate();
         repaint();    
-        
+     
     }
     
     
@@ -125,8 +139,9 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
 	this.addTilesEast();
 	this.addButtons();
 	
+	this.randomizeTiles();
+	
 	setVisible(true);
-	randomize();
 	
 	return;
 	
@@ -162,8 +177,7 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
               leftTiles_.add(tile, boardLayout_);
               defaultTileIds_[i] = i;
               tileComponents_.add(tile); 
-             
-              
+               
           }
           
           add(leftTiles_, boardLayout_);
@@ -243,6 +257,7 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
               rightTiles_.add(tile, boardLayout_);
               defaultTileIds_[i + 8] = i+8;
               tileComponents_.add(tile);
+              
           }
           
           add(rightTiles_, boardLayout_);
@@ -290,6 +305,48 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
 	  add(buttonPanel_, buttonConstraints);
         
 	  return;
+      }
+      
+      /**
+       * This function is tasked with the "randomization" of 
+       * all movable Content objects. To summarize, this function
+       * shuffles potential indices of Content objects, and 
+       * assigns said indices to a Tile container. From there,
+       * a random rotation index is generated, and assigned to
+       * the Theta value of each Content object, effectively
+       * randomizing the rotation of that object.
+       */
+      public void randomizeTiles() {
+          
+          Random random = new Random();
+          ArrayList<Integer> randomNumberArray = new ArrayList<Integer>();
+          
+          for (int i = 0; i < defaultTileIds_.length; i++) {
+              
+              randomNumberArray.add(i);
+              
+          }
+          Collections.shuffle(randomNumberArray);
+          
+          ArrayList<JComponent> contentList = Tile.getContentArray();
+          
+          for (int j = 0; j < defaultTileIds_.length; j++) {
+              
+              int randomNumber = randomNumberArray.get(j);
+              
+              tile_ = (Tile) tileComponents_.get(j);
+              tile_.add(contentList.get(randomNumber));
+              
+              content_ = (Content) contentList.get(j);
+              int randomRotation = random.nextInt(4);
+              content_.setRotateCount(randomRotation);
+              
+              defaultRotations[j] = randomRotation;
+              randomComponents_.add(contentList.get(randomNumber));
+              
+          }
+          revalidate();
+          repaint();
       }
       
       
@@ -346,32 +403,4 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
         return buttonPanel_;
         
       }
-      
-      public void randomize() {
-          int counter = 0;
-          Random random = new Random();
-          Integer[] randomIndexOptions = new Integer[16];
-          for (int i = 0; i < 16; i++) {
-              randomIndexOptions[i] = i;
-          }
-          Collections.shuffle(Arrays.asList(randomIndexOptions));
-          
-          ArrayList<JComponent> contentList = Tile.getContentArray();
-          
-          while(counter != 16) {
-              int randomIndex = randomIndexOptions[counter];
-              
-              tile_ = (Tile) tileComponents_.get(counter);
-              tile_.add(contentList.get(randomIndex));
-              
-              content_ = (Content) contentList.get(counter);
-              int randomRotation = random.nextInt(4);
-              content_.setRotateCount(randomRotation);
-              defaultRotations[counter] = randomRotation;
-              randomComponents_.add(contentList.get(randomIndex));
-              counter++;
-          }       
-      }
 };
-
-

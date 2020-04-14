@@ -11,7 +11,6 @@
 import java.awt.*;
 import java.awt.event.*;
 import java.io.Serializable;
-
 import javax.swing.*;
 
 /**
@@ -32,6 +31,9 @@ import javax.swing.*;
  * used for casting, instance checking, and parent object modification.
  * @tileParent_ is a static variable derived from the Container class, 
  * used for casting, instance checking, and parent object modification.
+ * @timer_ is used for the delayed background shift on Content objects
+ * when an illegal move is made. It is initialized with a delay of 
+ * 150 milliseconds, and a null action listener.
  *
  */
 public class MouseHandler extends MouseAdapter implements Serializable{
@@ -44,8 +46,11 @@ public class MouseHandler extends MouseAdapter implements Serializable{
     private static Container cellParent_;
     private static Container tileParent_;
     
+    private Timer timer_ = new Timer(150, null);
+    
     public static final long serialVersionUID = 1;
-   
+    
+    
    @Override
    public void mousePressed(MouseEvent event) {
        
@@ -72,9 +77,9 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                  //Did you click on something non related?
         	   if ( (Content) event.getComponent() != content_) {
         	       
+        	       flashPiece(content_);
         	       content_.deselect();
         	       content_ = null;
-        	       Toolkit.getDefaultToolkit().beep();
         	       isSelected_ = false;
         	       
                    } else { //Catch all for illegal moves.
@@ -151,12 +156,50 @@ public class MouseHandler extends MouseAdapter implements Serializable{
               }
           } 
        }
+       //Is right button pressed?
        if (SwingUtilities.isRightMouseButton(event)) {
-           
+           //Did we click on a label? 
            if (event.getComponent() instanceof Content) {
                content_ = (Content) event.getComponent();
-               content_.rotate();
+               content_.incrementTheta();
            }   
        }
+    }
+   
+   
+   /**
+    * This function is used when an illegal "Tile Swap" is made. 
+    * The function begins with the label that was previously selected,
+    * and changes it's background back and forth between a "danger zone"
+    * color. Normally, this switch would be too quick for a human eye to 
+    * register, and so a timer that utilizes a delay is used. 
+    * @param label is the Content object that was previously selected 
+    * and illegally moved.
+    */
+   public void flashPiece(JLabel label) {
+     
+       final Color[] colors = new Color[2];
+       colors[0] = new Color(96, 165, 218);
+       colors[1] = Color.RED;
+       
+       timer_.addActionListener(new ActionListener() {
+           int counter = 0;
+           public void actionPerformed(ActionEvent actionEvent) {
+               
+               if (counter < 8) {
+                   
+                   label.setBackground(colors[counter%2]);
+                   counter++;
+                   
+               } else {
+                   
+                   label.setBackground(colors[0]);
+                   timer_.stop();
+                   timer_.removeActionListener(this);
+                   
+               }
+           }
+       });
+       timer_.start();
     }
 };

@@ -30,6 +30,10 @@ import java.util.*;
  * @mouseHandler_ is a variable that allows for mouse listening capabilities,
  * and is directly derived from the MouseHandler class. 
  * As such, all actions of a mouse events are handled in that class.
+ * @theta_ is a primitive int variable that is used to represent what degree shift
+ * a content object should be at (90, 180, 270, 360).
+ * @defaultRotation_ is a primitive int variable that is used to keep track of 
+ * the degree shift that a Content object is originally spawned with. 
  */
 public class Content extends JLabel implements Serializable {
         
@@ -42,18 +46,16 @@ public class Content extends JLabel implements Serializable {
     private static ArrayList<Line2D[]> lineInfo_ = rawFileHandler_.getLineInfo();
     private Line2D[] currentLines_;
     
-    private static final Dimension CONTENT_DIMENSIONS_ = new Dimension(90, 90);
+    private static final Dimension CONTENT_DIMENSIONS_ = new Dimension(70, 70);
     private Color contentBackground_ = new Color(96, 165, 218);
 
     private MouseHandler mouseHandler_ = new MouseHandler(); 
     
-    private int rotateCount;
-    private int defaultRotation;
-   
+    private int theta_ = 0;
+    private int defaultRotation_;
     
     private static final long serialVersionUID = 992L;
-    
-
+   
     
     /**
      * This is the constructor that defines the main attributes that each Content object will have.
@@ -89,9 +91,11 @@ public class Content extends JLabel implements Serializable {
         g2d.setStroke(new BasicStroke(3));
         g2d.setPaint(Color.BLACK);
         
+        //For some reason, you must interact with the rotate function
+        //before any lines are drawn.
         int halfWidth = getWidth() / 2;
         int halfHeight = getHeight() / 2;
-        double radians = (rotateCount * 90 * Math.PI) / (180);
+        double radians = (theta_ * (Math.PI / 2));
         
         g2d.rotate(radians, halfWidth, halfHeight);
         
@@ -131,29 +135,47 @@ public class Content extends JLabel implements Serializable {
     }
     
     
-    public void rotate() {
-        if (rotateCount < 3) {
-            rotateCount++;
-        }
-        else {
-            rotateCount = 0;
-        }
+    /**
+     * This function is accessed by the MouseHandler class to manually increment the 
+     * Theta value a Content object has. This allows for object rotation by modifying the
+     * Radian value that the object is painted with. 
+     */
+    public void incrementTheta() {
+        
+        theta_ = (theta_ + 1) % 4;
         this.repaint(); 
     }
     
     
+    /**
+     * This is a setter that is used to keep track of which Content object
+     * gets a certain set of lines. 
+     * @param importedLines, the 2D Lines to be drawn on a specified Content
+     * object.
+     */
     public void setLines(Line2D[] importedLines) {
         currentLines_ = importedLines;
     }
     
+    
+    /**
+     * This setter is used to "pre-load" the rotation values that each
+     * Content object is spawned with. Primarily used in the reset sequence.
+     * @param setting
+     */
     public void setRotateCount(int setting) {
-        rotateCount = setting;
-        defaultRotation = rotateCount;
-        System.out.println(rotateCount);
+        theta_ = setting;
+        defaultRotation_ = theta_;
         this.repaint();
     }
     
+    
+    /**
+     * This getter returns the pre-loaded rotation values that
+     * each Content object is spawned with.
+     * @return defaultRotation_, an int value to be used in Radian calculation.
+     */
     public int getDefaultRotation() {
-        return defaultRotation;
+        return defaultRotation_;
     }
 };
