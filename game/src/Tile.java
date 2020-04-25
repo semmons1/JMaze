@@ -5,7 +5,7 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 3, 2020
+ * Date: Apr 16, 2020
  */
 
 import javax.swing.*;
@@ -30,15 +30,23 @@ import java.util.ArrayList;
  * @contentInfo_ is meant to house Content objects at the time of their original generation.
  * This variables is accessed when Content objects need to be moved independent of a
  * mouse handling event.
+ * @positionNumber_, an static int variable that is used to keep track of this particular 
+ * object ID. It is incremented in a counter-like fashion each time this object is called
+ * in a factory method.
+ * @generatedTileId_, an int variable that is used by Content to identify it's exact parent
+ * container upon save.
  */
 public class Tile extends JPanel implements Serializable {
 
-    private static final Dimension TILE_DIMENSIONS_ = new Dimension (70, 70);
+    private static final Dimension TILE_DIMENSIONS_ = new Dimension (100, 100);
     private MouseHandler mouseHandler_ = new MouseHandler();
     
     private Content content_ = new Content();
     
     private static ArrayList<JComponent> contentInfo_ = new ArrayList<JComponent>();
+    
+    private static int positionNumber_ = 0;
+    private int generatedTileId_;
    
     
     private static final long serialVersionUID = 999L;
@@ -59,6 +67,8 @@ public class Tile extends JPanel implements Serializable {
         addMouseListener(mouseHandler_);
         
         contentInfo_.add(content_);
+        generatedTileId_ = positionNumber_;
+        positionNumber_++;
     }
     
     
@@ -98,6 +108,16 @@ public class Tile extends JPanel implements Serializable {
      */
     public static void setContentArray(ArrayList<JComponent> importedChanges) {
         contentInfo_ = importedChanges;
+    }
+      
+     
+    /**
+     * This is a getter for returning a tile position.
+     * Used for saving Content position in parent container.
+     * @return generatedTileId_, an int value of the parent container.
+     */
+    public int getPosition() {
+        return generatedTileId_; 
     }
     
 };

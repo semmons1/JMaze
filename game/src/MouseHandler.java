@@ -5,7 +5,7 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 3, 2020
+ * Date: Apr 16, 2020
  */
 
 import java.awt.*;
@@ -46,8 +46,6 @@ public class MouseHandler extends MouseAdapter implements Serializable{
     private static Container cellParent_;
     private static Container tileParent_;
     
-    private Timer timer_ = new Timer(150, null);
-    
     public static final long serialVersionUID = 1;
     
     
@@ -77,7 +75,8 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                  //Did you click on something non related?
         	   if ( (Content) event.getComponent() != content_) {
         	       
-        	       flashPiece(content_);
+        	       MouseHandler.FlashPiece flash = new MouseHandler.FlashPiece();
+        	       flash.setLabel(content_);
         	       content_.deselect();
         	       content_ = null;
         	       isSelected_ = false;
@@ -105,6 +104,7 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                         cellParent_.revalidate();
                         cellParent_.repaint();
                         isSelected_ = false;
+                        GameWindow.setChanged(true);
                 	
                    } else {
                        
@@ -119,6 +119,7 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                        tileParent_.revalidate();
                        tileParent_.repaint();
                        isSelected_ = false;
+                       GameWindow.setChanged(true);
                        
                    }
                     
@@ -139,6 +140,7 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                        tile_.repaint();
                        tileParent_.revalidate();
                        tileParent_.repaint();
+                       GameWindow.setChanged(true);
                        
                    } else {
                        
@@ -151,6 +153,7 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                        cell_.setBorder(BorderFactory.createLineBorder(Color.black));
                        tileParent_.revalidate();
                        tileParent_.repaint();
+                       GameWindow.setChanged(true);
                        
                   }
               }
@@ -160,46 +163,71 @@ public class MouseHandler extends MouseAdapter implements Serializable{
        if (SwingUtilities.isRightMouseButton(event)) {
            //Did we click on a label? 
            if (event.getComponent() instanceof Content) {
+               //To protect against highlighting multiple game pieces.
+               if (content_ != null) {
+                   
+                   content_.deselect();
+                   isSelected_ = false;
+                   
+               }
                content_ = (Content) event.getComponent();
                content_.incrementTheta();
+               GameWindow.setChanged(true);
            }   
        }
     }
    
    
    /**
-    * This function is used when an illegal "Tile Swap" is made. 
+    * This class is used when an illegal "Tile Swap" is made. 
     * The function begins with the label that was previously selected,
     * and changes it's background back and forth between a "danger zone"
     * color. Normally, this switch would be too quick for a human eye to 
     * register, and so a timer that utilizes a delay is used. 
-    * @param label is the Content object that was previously selected 
-    * and illegally moved.
+    * @timer_, a Swing Timer to be used for background switch
+    * delay.
+    * @colors_, a color array used to switch background colors
+    * @counter_ a int value that is used to determine how many
+    * times a label will flash
+    * @illegalLabel_, the label that was moved illegally.
     */
-   public void flashPiece(JLabel label) {
-     
-       final Color[] colors = new Color[2];
-       colors[0] = new Color(96, 165, 218);
-       colors[1] = Color.RED;
+     public class FlashPiece implements ActionListener {
        
-       timer_.addActionListener(new ActionListener() {
-           int counter = 0;
-           public void actionPerformed(ActionEvent actionEvent) {
-               
-               if (counter < 8) {
-                   
-                   label.setBackground(colors[counter%2]);
-                   counter++;
-                   
-               } else {
-                   
-                   label.setBackground(colors[0]);
-                   timer_.stop();
-                   timer_.removeActionListener(this);
-                   
-               }
+       private Timer timer_ = new Timer(150, this); 
+       private Color[] colors_ = new Color[2];
+       private int counter_ = 0;
+       private JLabel illegalLabel_;
+       
+       
+       @Override
+       public void actionPerformed(ActionEvent actionEvent) {
+           colors_[0] = new Color(96, 165, 218);
+           colors_[1] = Color.RED;
+       
+           if (counter_ < 8) {
+               illegalLabel_.setBackground(colors_[counter_%2]);
+               counter_++;
+           
+           } else {
+       
+               illegalLabel_.setBackground(colors_[0]);
+               timer_.stop();
+               timer_.removeActionListener(this);
+           
            }
-       });
-       timer_.start();
-    }
+       }
+       
+       /**
+        * This function is called with a label that was moved
+        * in an illegal fashion. This also starts
+        * a swing timer sequence.
+        * @param label, A JLabel that will "flash".
+        */
+       public void setLabel(JLabel label) {
+           
+           illegalLabel_ = label;
+           timer_.start();
+           
+       }
+   }; 
 };

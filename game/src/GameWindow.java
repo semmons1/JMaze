@@ -5,10 +5,12 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 3, 2020
+ * Date: Apr 16, 2020
  */
 
 import javax.swing.*;
+import javax.swing.filechooser.FileSystemView;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -39,12 +41,17 @@ import java.io.*;
  * accessed by different panels, hence why it is declared here.
  * @defaultRotations_ is a primitive array used to keep track of 
  * original Theta values when components are first randomized.
+ * @isChanged_, a boolean variable that keeps track of when the game has been modified.
+ * This lets the user save in case they forget upon exiting the game.
  * @tileComponents_, an ArrayList that is used to keep track of all Tile 
  * objects at the time of their generation.
  * @cellComponents_, an ArrayList that is used to keep track of all Cell 
  * objects at the time of their generation.
  * @randomComponents_, an ArrayList that is used to keep track of all 
  * randomized Content objects at the time of their generation.
+ * @saveComponents_, an ArrayList to collect all Tile and Cell objects upon
+ * initial generation. It is primarily used when new ID's and rotations must
+ * be reassigned for a file the has been loaded.
  */
 public class GameWindow extends JFrame implements ActionListener, Serializable {
     
@@ -57,12 +64,16 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
     private Tile tile_;
     private Cell cell_;
     private Content content_;
-       
+            
     private int[] defaultTileIds_ = new int[16];
     private static int[] defaultRotations = new int[16];
+    
+    private static boolean isChanged_ = false;
+     
     private static ArrayList<Component> tileComponents_ = new ArrayList<Component>();
     private static ArrayList<Component> cellComponents_ = new ArrayList<Component>();
     private static ArrayList<Component> randomComponents_ = new ArrayList<Component>();
+    private ArrayList<Component> saveComponents_ = new ArrayList<Component>();
     
     public static final long serialVersionUID = 1;
     
@@ -87,16 +98,33 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
     public void actionPerformed(ActionEvent e) {
         
 	if ("exit".equals(e.getActionCommand())) {
-	    System.exit(0);
+	    if(isChanged_) {
+	        int saveOption = JOptionPane.showOptionDialog(null,"Would you like to save your game?", "Exit Options",
+	                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, new String[] {"No", "Yes"}, null);
+	        if (saveOption == JOptionPane.NO_OPTION) {
+	        
+	        fileOptions();
+	        System.exit(0);
+	        } else {
+	            
+	        System.exit(0);
+	        }
+	        
+	    } else {
+	        System.exit(0);
+	    }
 	}
 	
 	if ("reset".equals(e.getActionCommand())) {   
 	    reset();
+	    isChanged_ = false;
 	}
 	
-	if ("new".equals(e.getActionCommand())) {
-	    System.out.println("new pressed\n");
+	if ("file".equals(e.getActionCommand())) {
+	    fileOptions();
+	    
 	}
+	    
 	
     }
     
@@ -129,6 +157,111 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
     
     
     /**
+     * This wonderful block of ifs and loops is used to make decisions
+     * based on what "file option" the user chooses. It contains many
+     * instance variables that are only declared in this function, because they
+     * are only ever used, by this function. 
+     */
+    public void fileOptions() {
+        
+        ArrayList<JComponent> movablePieces = new ArrayList<JComponent>();
+        
+        int saveOrLoad = JOptionPane.showOptionDialog(null,"Would you like to load or save a game?", "File Options",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, new String[] {"Load", "Save"}, null);
+        
+        if (saveOrLoad == JOptionPane.YES_OPTION) {
+            
+            //Loading is performed here
+            JFileChooser fileChooser = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+            
+            int request = fileChooser.showOpenDialog(null);
+            
+            if (request == JFileChooser.APPROVE_OPTION) {
+                
+                //Send file to be loaded to the RawFileHandler constructor
+                //for parsing.
+                File fileToLoad = fileChooser.getSelectedFile();
+                RawFileHandler rawFileHandler = new RawFileHandler(fileToLoad);
+                
+                int[] newPositions = rawFileHandler.getTileIds();
+                int[] newRotations = rawFileHandler.getTileRotations();
+                movablePieces = Tile.getContentArray(); //Load complete Content array.
+                //For all 32 parent containers
+               for (int i = 0; i < 32; i++) {
+                    
+                   //For all positions marked by 16 movable pieces.
+                    for(int j = 0; j < 16; j ++) {
+                        //if a position marked by load information is the same as the
+                        //current position.
+                        if (newPositions[j] == i ) {
+                            //If this is for a Tile object
+                            if ( i < 16) {
+                                //Get tile based on ID. Add a piece and update rotation based on loaded IDs.
+                                Tile saveTile = (Tile) saveComponents_.get(newPositions[j]);
+                                Content saveContent = (Content) movablePieces.get(j);
+                                saveContent.setSavedRotation(newRotations[j]);
+                                saveTile.addLabel(saveContent);
+                            }
+                            //If this is for a Cell object
+                            else if (i >= 16) {
+                              //Get cell based on ID. Add a piece and update rotation based on loaded IDs.
+                                Cell saveCell = (Cell) saveComponents_.get(newPositions[j]);
+                                Content saveContent = (Content) movablePieces.get(j);
+                                saveContent.setSavedRotation(newRotations[j]);
+                                saveContent.setBorder(null);
+                                saveCell.setBorder(null);
+                                saveCell.addLabel(saveContent);
+                            }
+                        }
+                    }
+                    
+                }
+                repaint();
+                revalidate();
+                               
+            }
+          
+        } 
+        if (saveOrLoad == JOptionPane.NO_OPTION) {
+            
+            //Saving is performed here.
+            JFileChooser fileChooser = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+            
+            int request = fileChooser.showSaveDialog(null);
+            
+            if (request == JFileChooser.APPROVE_OPTION) {
+                
+                File fileToSave = fileChooser.getSelectedFile();
+                
+                if (!fileToSave.exists()) {
+                    
+                    RawFileHandler.saveFile(fileToSave);
+                    isChanged_ = false;
+                }
+           
+                else if (fileToSave.exists()) {
+                    //Are you overwriting a file?
+                    int overwriteRequest = JOptionPane.showOptionDialog(null, "Do you want to overwrite this file?",
+                            "File Options", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null , null);
+                    
+                    if (overwriteRequest == JOptionPane.YES_OPTION) {
+                        RawFileHandler.saveFile(fileToSave);
+                        isChanged_= false;
+                    }
+                    
+                    if (overwriteRequest == JOptionPane.NO_OPTION) {
+                        fileOptions();
+                    }
+                }
+            }
+        }
+    }
+  
+    
+    
+    /**
      * For Game Board setup. Does no actual work,
      * just calls out to different methods that render and align our panels.
      */
@@ -141,6 +274,18 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
 	
 	this.randomizeTiles();
 	
+	//Needed for loading purposes used in fileOptions()
+	for (int i = 0;  i < 32; i++) {
+	    if (i < 16) {
+	        Tile tilesToAdd = (Tile) tileComponents_.get(i);
+	        saveComponents_.add(tilesToAdd);
+	    }
+	    else if (i < 32 && i >=16 ) {
+	        Cell cellsToAdd = (Cell) cellComponents_.get(i-16);
+	        saveComponents_.add(cellsToAdd);
+	    }
+	}
+	  	
 	setVisible(true);
 	
 	return;
@@ -176,8 +321,8 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
               boardLayout_.gridy = i;
               leftTiles_.add(tile, boardLayout_);
               defaultTileIds_[i] = i;
-              tileComponents_.add(tile); 
-               
+              tileComponents_.add(tile);
+             
           }
           
           add(leftTiles_, boardLayout_);
@@ -257,7 +402,7 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
               rightTiles_.add(tile, boardLayout_);
               defaultTileIds_[i + 8] = i+8;
               tileComponents_.add(tile);
-              
+                            
           }
           
           add(rightTiles_, boardLayout_);
@@ -279,9 +424,9 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
 	  
 	  JButton lButton, mButton, rButton;
 	  
-	  lButton=new JButton("New Game");
+	  lButton=new JButton("File");
 	  mButton=new JButton("Reset");
-	  rButton=new JButton("Exit");
+	  rButton=new JButton("Quit");
 	  
 	  rButton.setActionCommand("exit");
 	  rButton.addActionListener(this);
@@ -290,6 +435,10 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
 	  mButton.setActionCommand("reset");
 	  mButton.addActionListener(this);
 	  mButton.setToolTipText("Click to reset all game peices");
+	  
+	  lButton.setActionCommand("file");
+	  lButton.addActionListener(this);
+	  lButton.setToolTipText("Click to save or load game");
 	  
 	  buttonPanel_.add(lButton);
 	  buttonPanel_.add(mButton);
@@ -306,6 +455,7 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
         
 	  return;
       }
+      
       
       /**
        * This function is tasked with the "randomization" of 
@@ -326,6 +476,7 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
               randomNumberArray.add(i);
               
           }
+          
           Collections.shuffle(randomNumberArray);
           
           ArrayList<JComponent> contentList = Tile.getContentArray();
@@ -403,4 +554,15 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
         return buttonPanel_;
         
       }
+      
+      /**
+       * This is a setter this is used to determine if changes to the game
+       * have been made, in case the user forgets to save. 
+       * @param changed, a Boolean value that modifies the 
+       * isChanged_ variable based on game events.
+       */
+      public static void setChanged(boolean changed) {
+          isChanged_ = changed;
+      }
+     
 };

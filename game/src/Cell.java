@@ -5,7 +5,7 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 3, 2020
+ * Date: Apr 16, 2020
  */
 
 import javax.swing.*;
@@ -23,14 +23,22 @@ import java.io.Serializable;
  * mouse listening capabilities, and is directly
  * derived from the MouseHandler class. As such, 
  * all actions of a mouse event are handled in that class.
+ * @positionNumber_, an static int variable that is used to keep track of this particular 
+ * object ID. It is incremented in a counter-like fashion each time this object is called
+ * in a factory method.
+ * @generatedCellId_, an int variable that is used by Content to identify it's exact parent
+ * container upon save.
  */
 public class Cell extends JPanel implements Serializable {
     
-    private static final Dimension CELL_DIMENSIONS_ = new Dimension(70, 70);
+    private static final Dimension CELL_DIMENSIONS_ = new Dimension(100, 100);
     private Color cellColors_ = new Color(1, 7, 91);
   
     private MouseHandler mouseHandler_ = new MouseHandler();
-  
+    
+    private static int positionNumber_ = 16;
+    private int generatedCellId_;
+      
     private static final long serialVersionUID = 999L;
     
     /**
@@ -44,7 +52,9 @@ public class Cell extends JPanel implements Serializable {
         setPreferredSize(CELL_DIMENSIONS_);
         setMinimumSize(CELL_DIMENSIONS_);
         addMouseListener(mouseHandler_);
-        
+        generatedCellId_ = positionNumber_;
+        positionNumber_++;
+                    
     }
     
     
@@ -62,5 +72,15 @@ public class Cell extends JPanel implements Serializable {
         revalidate();
         repaint();
     
+    }
+    
+    
+    /**
+     * This is a getter for returning a cell position.
+     * Used for saving Content position in parent container.
+     * @return generatedCellId_, an int value of the parent container.
+     */
+    public int getPosition() {
+        return generatedCellId_; 
     }
 };
