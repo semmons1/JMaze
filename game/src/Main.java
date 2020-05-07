@@ -5,7 +5,7 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 16, 2020
+ * Date: May 12, 2020
  *
  * A starting point for the COSC 3011 programming assignment
  * Probably need to fix a bunch of stuff, but this compiles and runs.

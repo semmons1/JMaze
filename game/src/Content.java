@@ -5,7 +5,7 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Apr 16, 2020
+ * May 12, 2020
  */
 
 import javax.swing.*;
@@ -15,10 +15,6 @@ import java.awt.geom.Line2D;
 import java.io.Serializable;
 import java.util.*;
 import java.io.*;
-
-
-
-
 /**
  * Child class that is derived from JLabel, for now
  * serves the purposes of representing an object that can be
@@ -36,7 +32,9 @@ import java.io.*;
  * @theta_ is a primitive int variable that is used to represent what degree shift
  * a content object should be at (90, 180, 270, 360).
  * @defaultRotation_ is a primitive int variable that is used to keep track of 
- * the degree shift that a Content object is originally spawned with. 
+ * the degree shift that a Content object is originally spawned with. \
+ * @generatedContentId_ is another primitive int variable that is used to mark a specific
+ * content piece. It acts as a live ID, useful for checking win conditions.
  * @lineInfo_, an ArrayList that is imported from RawFileHandler, and contains
  * line information for all sixteen pieces. contentIndex_ is used to decide
  * which lines go where.
@@ -46,7 +44,7 @@ import java.io.*;
  */
 public class Content extends JLabel implements Serializable {
         
-    private File originalFile_ = new File("input/default.mze"); //could also be ../../input/default.mze
+    private static File originalFile_ = new File("game/input/default.mze"); //could also be ../../input/default.mze
     private RawFileHandler rawFileHandler_ =  new RawFileHandler(originalFile_); 
     private static int contentIndex_ = 0;
     private ArrayList<Line2D[]> lineInfo_ = rawFileHandler_.getLineInfo();
@@ -59,13 +57,14 @@ public class Content extends JLabel implements Serializable {
     
     private int theta_ = 0;
     private int defaultRotation_;
+    private int generatedContentId_;
     
     private static final long serialVersionUID = 992L;
    
     
     /**
      * This is the constructor that defines the main attributes that each Content object will have.
-     * Along with size and opacity and text, each Tile object is given it's own mouse listener.
+     * Along with size and opacity and text, each Content object is given it's own mouse listener.
      */
     public Content() {
         
@@ -83,6 +82,7 @@ public class Content extends JLabel implements Serializable {
         with all the repaint() functions that are called in this program.
         */
         setLines(lineInfo_.get(contentIndex_));
+        generatedContentId_ = contentIndex_;
         contentIndex_++;
     }
     
@@ -115,6 +115,7 @@ public class Content extends JLabel implements Serializable {
                     
             g2d.draw(new Line2D.Float(x0, y0, x1, y1));
             
+        
         }
     }
     
@@ -151,7 +152,7 @@ public class Content extends JLabel implements Serializable {
         theta_ = (theta_ + 1) % 4;
         this.repaint(); 
     }
-    
+   
     
     /**
      * This is a setter that is used to keep track of which Content object
@@ -160,10 +161,17 @@ public class Content extends JLabel implements Serializable {
      * object.
      */
     public void setLines(Line2D[] importedLines) {
+        
         currentLines_ = importedLines;
     }
     
+    
+    /**
+     * Get the current lines for a Content object.
+     * @return currentLines_, the lines needed for each Content object.
+     */
     public Line2D[] getLines() {
+        
         return currentLines_;
     }
     
@@ -174,14 +182,31 @@ public class Content extends JLabel implements Serializable {
      * @param setting
      */
     public void setRotateCount(int setting) {
+        
         theta_ = setting;
         defaultRotation_ = theta_;
         this.repaint();
     }
     
+    /**
+     * This is a setter to adjust rotation based on previously set values.
+     * @param savedSetting, and int value for rotation setting.
+     */
     public void setSavedRotation(int savedSetting) {
+        
         theta_ = savedSetting;
         this.repaint();
+    }
+    
+    /**
+     * This is a setter that can be used to adjust how the default file is 
+     * loaded on initial startup.
+     * @param input, the new file path.
+     */
+    public static void setOriginalFile(File input) {
+        
+        originalFile_ = input;
+        
     }
     
     
@@ -194,8 +219,21 @@ public class Content extends JLabel implements Serializable {
         return defaultRotation_;
     }
     
+    /**
+     * This getter returns the current rotation values.
+     * @return the current theta value.
+     */
     public int getCurrentRotation() {
         return theta_;
+    }
+    
+    /**
+     * This getter returns the actual CONTENT object ID.
+     * @return generatedContentId_, a live runtime ID.
+     */
+    public int getContentId() {
+        
+        return generatedContentId_;
     }
     
   

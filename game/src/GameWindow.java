@@ -5,12 +5,10 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 16, 2020
+ * Date: May 12, 2020
  */
 
 import javax.swing.*;
-import javax.swing.filechooser.FileSystemView;
-
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -29,29 +27,44 @@ import java.io.*;
  * in it's appropriate method (addTilesEast).
  * @buttonPanel_ is initialized as a private variable here, so that it may be used
  * in it's appropriate method (addButtons).
+ * @clockPanel_, a JPanel that is used to hold the game timer. It is 
+ * positioned directly above the button panel. 
  * @boardLayout_ is initialized as a private variable here, so that it may be used
  * in it's appropriate methods (all panel related methods).
+ * @rawFileHandler_, an un-used variable that serves the purposes of checking if a 
+ * default file is present. If not, all game setup is stopped, and the user 
+ * is forced to ensure that this file is in place.
  * @tile_, a null variable related to the Tile class, to be used for object
  * manipulation.
  * @cell_, a null variable related to the Cell class, to be used for object
  * manipulation.
  * @content_, a null variable related to the Content class, to be used for
  * objects manipulation.
+ * @clock_, a variable that initializes the game timer, and allows 
+ * us to modify it's values based on actions the user follows through with.
  * @defaultTileIds_ is the array meant to hold our tile ID #'s, it must be
  * accessed by different panels, hence why it is declared here.
  * @defaultRotations_ is a primitive array used to keep track of 
  * original Theta values when components are first randomized.
+ * @newResetRotations_ is a primitive array that is used to keep track of the 
+ * rotation values that should be used upon reset, IFF a new file has been loaded.
+ * @newResetPositions_ is a primitive array that is used to keep track of the 
+ * position values that should be used upon reset, IFF a new file has been loaded.
  * @isChanged_, a boolean variable that keeps track of when the game has been modified.
  * This lets the user save in case they forget upon exiting the game.
+ * @isNewLoad_, another boolean variable that is used to determine if the reset needs to 
+ * shift pieces based on a previously loaded file, or a brand new game.
  * @tileComponents_, an ArrayList that is used to keep track of all Tile 
  * objects at the time of their generation.
  * @cellComponents_, an ArrayList that is used to keep track of all Cell 
  * objects at the time of their generation.
  * @randomComponents_, an ArrayList that is used to keep track of all 
  * randomized Content objects at the time of their generation.
- * @saveComponents_, an ArrayList to collect all Tile and Cell objects upon
+ * @loadComponents_, an ArrayList to collect all Tile and Cell objects upon
  * initial generation. It is primarily used when new ID's and rotations must
  * be reassigned for a file the has been loaded.
+ * @newResetPieces_, a JComponents ArrayList used to keep track of pieces that need to be shifted
+ * upon reset, IFF a new file has been loaded.
  */
 public class GameWindow extends JFrame implements ActionListener, Serializable {
     
@@ -60,21 +73,29 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
     private JPanel centerGrid_ = new JPanel();
     private JPanel rightTiles_ = new JPanel();
     private JPanel buttonPanel_ = new JPanel(new GridLayout(1, 0));
+    private JPanel clockPanel_ = new JPanel();
     
+    RawFileHandler rawFileHandler_ = new RawFileHandler(new File("game/input/default.mze"));
     private Tile tile_;
     private Cell cell_;
     private Content content_;
+    private Clock clock_ = new Clock();
             
     private int[] defaultTileIds_ = new int[16];
-    private static int[] defaultRotations = new int[16];
+    private static int[] defaultRotations_ = new int[16];
+    private static int[] newResetRotations_;
+    private static int[] newResetPositions_;
+    
     
     private static boolean isChanged_ = false;
+    private static boolean isNewLoad_ = false;
      
     private static ArrayList<Component> tileComponents_ = new ArrayList<Component>();
     private static ArrayList<Component> cellComponents_ = new ArrayList<Component>();
     private static ArrayList<Component> randomComponents_ = new ArrayList<Component>();
-    private ArrayList<Component> saveComponents_ = new ArrayList<Component>();
-    
+    private static ArrayList<Component> loadComponents_ = new ArrayList<Component>();
+    private static ArrayList<JComponent> newResetPieces_ = new ArrayList<JComponent>();
+        
     public static final long serialVersionUID = 1;
     
     
@@ -99,20 +120,21 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
         
 	if ("exit".equals(e.getActionCommand())) {
 	    if(isChanged_) {
-	        int saveOption = JOptionPane.showOptionDialog(null,"Would you like to save your game?", "Exit Options",
-	                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, new String[] {"No", "Yes"}, null);
-	        if (saveOption == JOptionPane.NO_OPTION) {
+	        int saveCatch = JOptionPane.showOptionDialog(null, "Would you like to save before you proceed?",
+                        "Save Options", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, null);
+                if (saveCatch == JOptionPane.YES_OPTION) {
+                    
+                    FileOptions.saveOption();
+                    System.exit(0);
+                } 
+	        	        
 	        
-	        fileOptions();
 	        System.exit(0);
-	        } else {
-	            
-	        System.exit(0);
-	        }
-	        
 	    } else {
+	        
 	        System.exit(0);
 	    }
+	
 	}
 	
 	if ("reset".equals(e.getActionCommand())) {   
@@ -127,52 +149,69 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
 	    
 	
     }
-    
+     
     
     /**
      * This function makes use of Tile, Cell, and Content objects to manipulate the positions
      * of all movable objects, based on their original position.
      * In other words, once this function is called, all Content 
      * objects will return to their native Tile containers.
+     * If a new file has been loaded and a boolean check has been triggered,
+     * reset pieces will be set much in the same way as they are initially 
+     * loaded.
      */
     public void reset() {
         
-        for (int i = 0; i < defaultTileIds_.length; i++) {
+        //Fresh reset, no file load.
+        if (!isNewLoad_) {
             
-           tile_ = (Tile) tileComponents_.get(i);
-           content_ = (Content) randomComponents_.get(i);
+            for (int i = 0; i < defaultTileIds_.length; i++) {
+                tile_ = (Tile) tileComponents_.get(i);
+                content_ = (Content) randomComponents_.get(i);
            
-           int index = content_.getDefaultRotation();
+                int index = content_.getDefaultRotation();
            
-           content_.setRotateCount(index);
-           tile_.add(content_);
+                content_.setRotateCount(index);
+                tile_.add(content_);
            
-           cell_ = (Cell) cellComponents_.get(i);
-           cell_. setBorder(BorderFactory.createLineBorder(Color.BLACK));
+                cell_ = (Cell) cellComponents_.get(i);
+                cell_. setBorder(BorderFactory.createLineBorder(Color.BLACK));
+            }
+            //Set timer to 00:00:00
+            Clock.setCurrentTime(25200000);
+            Clock.setGoTime(false);
+            revalidate();
+            repaint();    
         }
-        revalidate();
-        repaint();    
-     
+        //Reset based on last file loaded.
+        else if (isNewLoad_) {
+            
+            FileOptions.arrangePieces();
+            
+            repaint();
+            revalidate();
+        }
+    
     }
+        
     
     
     /**
-     * This wonderful block of ifs and loops is used to make decisions
+     * This function containing many if's and loops is used to make decisions
      * based on what "file option" the user chooses. It contains many
      * instance variables that are only declared in this function, because they
-     * are only ever used, by this function. 
+     * are only ever used, by this function.
+     * It leverages functions from RawFileHandler, and FileOptions.
+     * The majority of checks are used in the loading process, as this is the place where
+     * most severe errors can occur. However, these have been shifted to their own class
+     * as to prevent bloat.
      */
     public void fileOptions() {
         
-        ArrayList<JComponent> movablePieces = new ArrayList<JComponent>();
-        
-        int saveOrLoad = JOptionPane.showOptionDialog(null,"Would you like to load or save a game?", "File Options",
-                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, new String[] {"Load", "Save"}, null);
-        
-        if (saveOrLoad == JOptionPane.YES_OPTION) {
+      //Options for loading up a default file manually if it is not present
+        if (!RawFileHandler.getMazeFileCheck() && !RawFileHandler.getDefaultCheck()) {
             
-            //Loading is performed here
-            JFileChooser fileChooser = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
+            JFileChooser fileChooser = new JFileChooser("game/input"); //Go straight to input folder
             fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
             
             int request = fileChooser.showOpenDialog(null);
@@ -182,80 +221,72 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
                 //Send file to be loaded to the RawFileHandler constructor
                 //for parsing.
                 File fileToLoad = fileChooser.getSelectedFile();
-                RawFileHandler rawFileHandler = new RawFileHandler(fileToLoad);
-                
-                int[] newPositions = rawFileHandler.getTileIds();
-                int[] newRotations = rawFileHandler.getTileRotations();
-                movablePieces = Tile.getContentArray(); //Load complete Content array.
-                //For all 32 parent containers
-               for (int i = 0; i < 32; i++) {
+                new RawFileHandler(fileToLoad);
+                //Check formatting
+                if (RawFileHandler.getHexCheck().contentEquals("CAFEBEEF")) {
                     
-                   //For all positions marked by 16 movable pieces.
-                    for(int j = 0; j < 16; j ++) {
-                        //if a position marked by load information is the same as the
-                        //current position.
-                        if (newPositions[j] == i ) {
-                            //If this is for a Tile object
-                            if ( i < 16) {
-                                //Get tile based on ID. Add a piece and update rotation based on loaded IDs.
-                                Tile saveTile = (Tile) saveComponents_.get(newPositions[j]);
-                                Content saveContent = (Content) movablePieces.get(j);
-                                saveContent.setSavedRotation(newRotations[j]);
-                                saveTile.addLabel(saveContent);
-                            }
-                            //If this is for a Cell object
-                            else if (i >= 16) {
-                              //Get cell based on ID. Add a piece and update rotation based on loaded IDs.
-                                Cell saveCell = (Cell) saveComponents_.get(newPositions[j]);
-                                Content saveContent = (Content) movablePieces.get(j);
-                                saveContent.setSavedRotation(newRotations[j]);
-                                saveContent.setBorder(null);
-                                saveCell.setBorder(null);
-                                saveCell.addLabel(saveContent);
-                            }
-                        }
-                    }
+                    //Fix file path for Content Objects
+                    Content.setOriginalFile(fileToLoad);
+                    RawFileHandler.setMazeFileCheck(true);
+                    //Reload game
+                    setUp();
+                    return;
+                    
+                } 
+                else if(RawFileHandler.getHexCheck().contentEquals("CAFEDEED")) {
+                   
+                    Content.setOriginalFile(fileToLoad);
+                    RawFileHandler.setMazeFileCheck(true);
+                    //Reload game and set played pieces
+                    setUp();
+                    FileOptions.setLoadFile(fileToLoad);
+                    FileOptions.arrangePieces();
+                    repaint();
+                    revalidate();
+                    return;
+                } else {
+                    
+                    //So you have chosen.... death?
+                    JOptionPane.showMessageDialog(null, "This is not a valid file! Please try again.",
+                            "Format Error", JOptionPane.ERROR_MESSAGE);
+                    fileOptions();
+                    return;
                     
                 }
+                
+            }
+              
+        }
+        
+        //Normal load and save options if all is well                  
+        int saveOrLoad = JOptionPane.showOptionDialog(null,"Would you like to load or save a game?", "File Options",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, new String[] {"Load", "Save"}, null);
+        
+        if (saveOrLoad == JOptionPane.YES_OPTION) {
+            
+            //You want to load, but have you saved?
+            if (isChanged_) {
+                
+                int saveCatch = JOptionPane.showOptionDialog(null, "Would you like to save before you proceed?",
+                        "Save Options", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, null);
+                if (saveCatch == JOptionPane.YES_OPTION) {
+                    
+                    isChanged_ = false;
+                    FileOptions.saveOption();
+                } 
+            }
+            //Go to load sequence
+            FileOptions.loadOption();
+            
                 repaint();
                 revalidate();
                                
-            }
-          
-        } 
+        }
+         
         if (saveOrLoad == JOptionPane.NO_OPTION) {
             
             //Saving is performed here.
-            JFileChooser fileChooser = new JFileChooser(FileSystemView.getFileSystemView().getHomeDirectory());
-            fileChooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
-            
-            int request = fileChooser.showSaveDialog(null);
-            
-            if (request == JFileChooser.APPROVE_OPTION) {
-                
-                File fileToSave = fileChooser.getSelectedFile();
-                
-                if (!fileToSave.exists()) {
-                    
-                    RawFileHandler.saveFile(fileToSave);
-                    isChanged_ = false;
-                }
-           
-                else if (fileToSave.exists()) {
-                    //Are you overwriting a file?
-                    int overwriteRequest = JOptionPane.showOptionDialog(null, "Do you want to overwrite this file?",
-                            "File Options", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null , null);
-                    
-                    if (overwriteRequest == JOptionPane.YES_OPTION) {
-                        RawFileHandler.saveFile(fileToSave);
-                        isChanged_= false;
-                    }
-                    
-                    if (overwriteRequest == JOptionPane.NO_OPTION) {
-                        fileOptions();
-                    }
-                }
-            }
+            FileOptions.saveOption();
         }
     }
   
@@ -264,31 +295,46 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
     /**
      * For Game Board setup. Does no actual work,
      * just calls out to different methods that render and align our panels.
+     * Uses initial File Handler query to determine if a default file is present.
+     * If not, force user to find one. Else, give blank frame.
      */
     public void setUp() {
+        
+        //Basically to avoid any nasty errors when a default file is not 
+        //present. Forces the user to reload because they cannot play otherwise.
+        if (!RawFileHandler.getMazeFileCheck()) { 
+            
+            fileOptions();
+        }
+            
 	
-	this.addTilesWest();
-	this.addGridBoard();
-	this.addTilesEast();
-	this.addButtons();
+        //Default file is present.
+        else if (RawFileHandler.getMazeFileCheck()) {
+            this.addTilesWest();
+            this.addGridBoard();
+            this.addTilesEast();
+            this.addButtons();
+		
+            this.randomizeTiles();
 	
-	this.randomizeTiles();
-	
-	//Needed for loading purposes used in fileOptions()
-	for (int i = 0;  i < 32; i++) {
-	    if (i < 16) {
-	        Tile tilesToAdd = (Tile) tileComponents_.get(i);
-	        saveComponents_.add(tilesToAdd);
-	    }
-	    else if (i < 32 && i >=16 ) {
-	        Cell cellsToAdd = (Cell) cellComponents_.get(i-16);
-	        saveComponents_.add(cellsToAdd);
-	    }
-	}
+            //Needed for loading purposes used in fileOptions(), all original
+            //parent containers must be saved.
+            for (int i = 0;  i < 32; i++) {
+                if (i < 16) {
+                    Tile tilesToAdd = (Tile) tileComponents_.get(i);
+                    loadComponents_.add(tilesToAdd);
+                }
+                else if (i < 32 && i >=16 ) {
+                    Cell cellsToAdd = (Cell) cellComponents_.get(i-16);
+                    loadComponents_.add(cellsToAdd);
+                }
+            }
+
 	  	
-	setVisible(true);
-	
-	return;
+            setVisible(true);
+            RawFileHandler.setDefaultCheck(true);
+            return;
+        }
 	
     }
 
@@ -415,12 +461,16 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
     /**
      * Initializes button panel and related constraints for button holding purposes.
      * This method contains it's own constraints so that our buttons can maintain
-     * their own look that is separate from the global constraints.
+     * their own look that is separate from the global constraints. This is also
+     * where the clock is added to the game frame.
      */
       private void addButtons() {
 	  
 	  setLayout(new GridBagLayout());
 	  GridBagConstraints buttonConstraints = new GridBagConstraints();
+	  
+	  clockPanel_.add(clock_.getClockPanel());
+	  clockPanel_.setBackground(Color.GRAY);
 	  
 	  JButton lButton, mButton, rButton;
 	  
@@ -443,19 +493,25 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
 	  buttonPanel_.add(lButton);
 	  buttonPanel_.add(mButton);
 	  buttonPanel_.add(rButton);
-          
+	            
 	  buttonConstraints.anchor = GridBagConstraints.NORTH;
 	  buttonConstraints.insets = new Insets(0, 0, 0, 0);
 	  buttonConstraints.weightx = 0;
-	  buttonConstraints.weighty = 0.2;
+	  buttonConstraints.weighty = 0.4;
 	  buttonConstraints.gridx = 1;
 	  buttonConstraints.gridy = 0;
 	  
+	  add(clockPanel_, buttonConstraints);
+	  
+	  buttonConstraints.weighty = 0.1;
+	  buttonConstraints.insets = new Insets(25, 0, 0, 0);
+	  
 	  add(buttonPanel_, buttonConstraints);
-        
+	  
+	        
 	  return;
       }
-      
+     
       
       /**
        * This function is tasked with the "randomization" of 
@@ -492,49 +548,15 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
               int randomRotation = random.nextInt(4);
               content_.setRotateCount(randomRotation);
               
-              defaultRotations[j] = randomRotation;
+              defaultRotations_[j] = randomRotation;
               randomComponents_.add(contentList.get(randomNumber));
               
           }
           revalidate();
           repaint();
       }
-      
-      
-      //These getters will be needed at some point in the future to return vital components of the game board.
-      /**
-       * This function can be called from external classes to retrieve important Gameboard components.
-       * @return leftTiles_, the backbone panel of the left tile column.
-       */
-      public JPanel getLeftPanel() {
-	  
-	  return leftTiles_;
-	  
-      }
-      
-      
-      /**
-       * This function can be called from external classes to retrieve important Gameboard components.
-       * @return rightTiles_, the backbone panel of the right tile column.
-       */
-      public JPanel getRightPanel() {
-	  
-	  return rightTiles_;
-	  
-      }
-      
-      
-      /**
-       * This function can be called from external classes to retrieve important Gameboard components.
-       * @return centerGrid_, the backbone panel of the GameBoard grid.
-       */
-      public JPanel getCenterPanel() {
-	  
-        return centerGrid_;
-        
-      }
-      
-      
+           
+           
       /**
        * This function can be called from external classes to retrieve important Gameboard components.
        * @return tileId_, the tile ID's that will likely be needed to check a win condition.
@@ -546,14 +568,88 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
       }
       
       /**
-       * This function can be called from external classes to retrieve important Gameboard components.
-       * @return buttonPanel_, the backbone panel of the buttons.
+       * This is a getter for new reset rotations, used when a new file is loaded.
+       * @return newResetRotations_, an int array with rotation values.
        */
-      public JPanel getButtonPanel() {
-	  
-        return buttonPanel_;
-        
+      public static int[] getNewResetRotations() {
+          
+          return newResetRotations_;
+      
       }
+     
+      /**
+       * This is a getter for new reset positions, used when a new file is loaded.
+       * @return newResetPoostions_, an int array with position values.
+       */
+      public static int[] getNewResetPositions() {
+          
+          return newResetPositions_;
+      
+      }
+      
+      
+      /**
+       * This is a getter for the boolean flag that changes when the game has been
+       * modified. 
+       * @return isChanged_, a boolean value that marks when a move has been made.
+       */
+      public static boolean getIsChanged() {
+          
+          return isChanged_;
+      }
+      
+      
+      /**
+       * This is a getter for the boolean flag that changes when a new load has 
+       * been triggered.
+       * @return isNewLoad_, a boolean value that marks when a new file has been loaded.
+       */
+      public static boolean getIsNewLoad() {
+          
+          return isNewLoad_;
+          
+      }
+      
+      /**
+       * This a getter for all parent components in the game. Mainly used for resetting
+       * and loading.
+       * @return loadComponents_, an ArrayList of parent containers.
+       */
+      public static ArrayList<Component> getLoadComponents() {
+          
+          return loadComponents_;
+      }
+      
+      
+      /**
+       * This is a getter for all new reset pieces. Mainly used for resetting and loading
+       * @return newResetPieces_, an ArrayList of game pieces.
+       */
+      public static ArrayList<JComponent> getNewResetPieces() {
+          
+          return newResetPieces_;
+      }
+      
+      /**
+       * This is a getter for all tile parent containers.
+       * @return tileComponents_, an ArrayList of Tile pieces.
+       */
+      public static ArrayList<Component> getTileComponents() {
+          
+          return tileComponents_;
+          
+      }
+      
+      /**
+       * This is a getter for all cell parent containers.
+       * @return cellComponents_, and ArrayList of Cell pieces.
+       */
+      public static ArrayList<Component> getCellComponents() {
+          
+          return cellComponents_;
+          
+      }
+      
       
       /**
        * This is a setter this is used to determine if changes to the game
@@ -563,6 +659,54 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
        */
       public static void setChanged(boolean changed) {
           isChanged_ = changed;
+      }
+      
+      /**
+       * This is a setter that is used to modify the flag that marks
+       * when a new file has been loaded.
+       * @param newLoad, a boolean value that modifies isNewLoad_.
+       */
+      public static void setIsNewLoad(boolean newLoad) {
+          isNewLoad_ = newLoad;
+      }
+      
+      /**
+       * This is a setter that adjusts reset rotations based on a 
+       * new file load.
+       * @param rotations, an int array with new rotation values for reset.
+       */
+      public static void setNewResetRotations(int[] rotations) {
+          newResetRotations_ = rotations;
+      }
+      
+      /**
+       * This is a setter that adjust reset positions based on a
+       * new file load.
+       * @param positions, an int array with new positions values for reset.
+       */
+      public static void setNewResetPositions(int[] positions) {
+          
+          newResetPositions_ = positions;
+      }
+      
+      /**
+       * This is a setter that adjusts game pieces based on a new file load.
+       * @param components, an ArrayList with game components.
+       */
+      public static void setNewLoadComponents(ArrayList<Component> components) {
+          
+          loadComponents_ = components;
+          
+      }
+      
+      /**
+       * This is a setter that adjusts reset pieces based on a new file load.
+       * @param jcomponents, an ArrayList with new reset components.
+       */
+      public static void setNewResetPieces(ArrayList<JComponent> jcomponents) {
+          
+          newResetPieces_ = jcomponents;
+          
       }
      
 };

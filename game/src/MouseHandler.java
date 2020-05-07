@@ -5,7 +5,7 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 16, 2020
+ * Date: May 4, 2020
  */
 
 import java.awt.*;
@@ -104,7 +104,9 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                         cellParent_.revalidate();
                         cellParent_.repaint();
                         isSelected_ = false;
+                        Clock.setGoTime(true);
                         GameWindow.setChanged(true);
+                        WinCheck.IdCheck();
                 	
                    } else {
                        
@@ -119,7 +121,9 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                        tileParent_.revalidate();
                        tileParent_.repaint();
                        isSelected_ = false;
+                       Clock.setGoTime(true);
                        GameWindow.setChanged(true);
+                       WinCheck.IdCheck();
                        
                    }
                     
@@ -128,7 +132,7 @@ public class MouseHandler extends MouseAdapter implements Serializable{
              //Move your label back to the column place-holders.
                else if (event.getComponent() instanceof Tile) {
         	   
-                 //if you are a 4 year old who loves to put pieces where they don't go.
+                 //If you're just moving stuff about because you're bad at this game.
         	   if(content_.getParent() instanceof Tile) {
         	       
         	       tile_ = (Tile) event.getComponent();
@@ -140,8 +144,9 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                        tile_.repaint();
                        tileParent_.revalidate();
                        tileParent_.repaint();
+                       Clock.setGoTime(true);
                        GameWindow.setChanged(true);
-                       
+                                              
                    } else {
                        
                        tile_ = (Tile) event.getComponent();
@@ -153,8 +158,9 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                        cell_.setBorder(BorderFactory.createLineBorder(Color.black));
                        tileParent_.revalidate();
                        tileParent_.repaint();
+                       Clock.setGoTime(true);
                        GameWindow.setChanged(true);
-                       
+                                              
                   }
               }
           } 
@@ -172,7 +178,9 @@ public class MouseHandler extends MouseAdapter implements Serializable{
                }
                content_ = (Content) event.getComponent();
                content_.incrementTheta();
+               Clock.setGoTime(true);
                GameWindow.setChanged(true);
+               WinCheck.IdCheck();
            }   
        }
     }

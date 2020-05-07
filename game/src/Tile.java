@@ -5,7 +5,7 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 16, 2020
+ * Date: May 12, 2020
  */
 
 import javax.swing.*;
@@ -47,8 +47,7 @@ public class Tile extends JPanel implements Serializable {
     
     private static int positionNumber_ = 0;
     private int generatedTileId_;
-   
-    
+       
     private static final long serialVersionUID = 999L;
     
     
@@ -57,7 +56,7 @@ public class Tile extends JPanel implements Serializable {
      * Along with size and opacity, each Tile object is given it's own mouse listener.
      */
     public Tile() {
-	
+        
         setBorder(BorderFactory.createLineBorder(Color.BLACK));
         setOpaque(false);
         setPreferredSize(TILE_DIMENSIONS_);
@@ -69,6 +68,7 @@ public class Tile extends JPanel implements Serializable {
         contentInfo_.add(content_);
         generatedTileId_ = positionNumber_;
         positionNumber_++;
+        
     }
     
     
@@ -120,4 +120,6 @@ public class Tile extends JPanel implements Serializable {
         return generatedTileId_; 
     }
     
+    
+      
 };

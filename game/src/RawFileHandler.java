@@ -5,9 +5,8 @@
  * @author Peter Harris
  * @author Stefan Emmons
  *
- * Date: Apr 16, 2020
+ * Date: May 12, 2020
  */
-
 import java.io.*;
 import java.nio.*;
 
@@ -16,14 +15,20 @@ import javax.swing.JOptionPane;
 
 import java.awt.geom.Line2D;
 import java.util.*;
-
 /**
  * This class handles all of the parsing necessary for 
- * binary file formats. For now, it will take a hard-coded file path,
+ * binary file formats. It will take a file path,
  * ensure the file exists, and then parses information into several different
  * data structures.
  * @fileName_, the filename that is passed to the constructor via
  * default load, or custom save/load.
+ * @hexValues_, this is a String function that allows other classes to observe the
+ * first four hex values of a function. This is needed when loading exceptions
+ * are caught.
+ * @isFileGood_, a boolean value used to check if a properly formatted file has been
+ * selected.
+ * @isDefaultLoaded_, another boolean value that marks when a default file has been
+ * successfully loaded. Needed for loading exceptions.
  * @tileIndex_, the number of tiles retrieved from the file.
  * @tileIds_, the IDS of each tile, as read from the file.
  * @tileRotations_, the integer value of rotations extracted from a saved file.
@@ -41,9 +46,15 @@ public class RawFileHandler implements Serializable {
     
     private File fileName_;
     
+    private static String hexValues_;
+    
+    private static boolean isFileGood_ = true;
+    private static boolean isDefaultLoaded_ = false;
+        
     private int tileIndex_;
-    private int[] tileIds_;
-    private int[] tileRotations_;
+    private long loadTime_;
+    private int[] tileIds_; 
+    private int[] savedRotations_ = new int[16];
     private int[] tileLines_;
     private Line2D[] floatValues_;
     private float[] xyCoords_;
@@ -57,22 +68,29 @@ public class RawFileHandler implements Serializable {
      * initiated through. Before any parsing is done, the given file path
      * is checked to ensure that it exists, and if it is the correct format.
      * If all is well, the file is parsed. 
+     * A default file must be present at every initial generation, and a pop up will remind
+     * the user of this, if one is not present.
+     *
      * @param fileName, the file path provided in Content or GameWindow.
      */
     public RawFileHandler(File fileName) {
+        
+        //Does this file exist at this path?
+        if(!fileName.exists()) {
+            JOptionPane.showMessageDialog(null, "We are experiencing a file not found error, please make sure that:\n "
+                    + "1. You have a default file labeled 'default.mze'.\n"
+                    + " 2. You have tried to load a valid file in a valid folder.",
+                    "File Not Found", JOptionPane.ERROR_MESSAGE);
+            isFileGood_ = false;
+                               
+        } else {
             
-            //Does this file exist at this path?
-            if(!fileName.exists()) {
-                JOptionPane.showMessageDialog(null, "This file does not exist at the given path!",
-                        "File Not Found", JOptionPane.ERROR_MESSAGE);
-                
-            }
-            
-            else {
-                setFileName(fileName);
-                parseBytes();
-            }
+            setFileName(fileName);
+            parseBytes();
+        }
+         
     }
+            
     
 
     /**
@@ -95,18 +113,22 @@ public class RawFileHandler implements Serializable {
             //Read in first line to determine how many tiles there are, or find "N".
             inputStream.read(byteSection);
             
-            String hexValues = convertToHex(byteSection);
+            hexValues_ = convertToHex(byteSection);
             
-            if (hexValues.contentEquals("CAFEDEED")) {
-                
+            if (hexValues_.contentEquals("CAFEDEED")) {
+                isFileGood_ = true;
                 loadFile(fileName_);
                 return 0;
             } 
-            else if (hexValues.contentEquals("CAFEBEEF")) {
+            else if (hexValues_.contentEquals("CAFEBEEF")) {
                 
                 inputStream.read(byteSection);           
                 tileIndex_ = convertToInt(byteSection);
-           
+                 
+                //Skip over 8 byte section with timer values. 
+                inputStream.read(byteSection);
+                inputStream.read(byteSection);
+                
                 //Size int arrays based on how many tiles we have.
                 tileIds_ = new int[tileIndex_];
                 tileLines_ = new int[tileIndex_];
@@ -118,7 +140,7 @@ public class RawFileHandler implements Serializable {
                     inputStream.read(byteSection);
                     //tile "number", take current chunk and assign ID based on loop index
                     tileIds_[i] = convertToInt(byteSection);
-                
+                                    
                     inputStream.read(byteSection);
                     //tile lines, take next chunk, assign int value for lines based on loop index
                     tileLines_[i] = convertToInt(byteSection);
@@ -151,12 +173,13 @@ public class RawFileHandler implements Serializable {
                     lineInfo_.add(floatValues_);
                     
                 }
-            
+                
                 inputStream.close();
                 return 0;
             } else {
                 
-                System.out.println("Bad file!");
+                isFileGood_ = false;
+                
                 return -1;
               }
             
@@ -182,6 +205,7 @@ public class RawFileHandler implements Serializable {
         
         int[] hexValues = new int[4];
         float[] tempCoordinateArray = new float[4];
+        ArrayList<JComponent> contentList = Tile.getContentArray();
         
         try (
                 OutputStream outputStream = new FileOutputStream(saveFile);
@@ -198,11 +222,14 @@ public class RawFileHandler implements Serializable {
             }
             //Number of movable tiles
             outputStream.write(convertToByteArray(16));
+            
+            //Played time
+            outputStream.write(convertToByteArray(Clock.getCurrentTime()));
                     
             for (int j = 0; j < 16; j++) {
                 
                 //Get current Content pieces, find their positions.
-                ArrayList<JComponent> contentList = Tile.getContentArray();
+                //ArrayList<JComponent> contentList = Tile.getContentArray();
                 Content content = (Content) contentList.get(j);
                 
                 //Handy function that determines current parent container,
@@ -212,6 +239,8 @@ public class RawFileHandler implements Serializable {
                    
                 //Get rotation of current piece.
                 int currentRotation = content.getCurrentRotation();
+                //Write out current rotation value, win condition does not play off of file.
+                //Seems inefficient to gauge a win condition off of what is in the file.
                 outputStream.write(convertToByteArray(currentRotation));
                  
                 //Get lines of current piece. 
@@ -273,10 +302,16 @@ public class RawFileHandler implements Serializable {
             inputStream.read(byteSection);
             tileIndex_ = convertToInt(byteSection);
             
+            byte[] timeSection = new byte[8];
+            
+            inputStream.read(timeSection);
+            
+            loadTime_ = convertToLong(timeSection);
+            
             
             tileIds_ = new int[tileIndex_];
             tileLines_ = new int[tileIndex_];
-            tileRotations_ = new int[tileIndex_];
+            savedRotations_ = new int[tileIndex_];
             
             for (int i = 0; i < tileIndex_; i++) {
                
@@ -285,8 +320,8 @@ public class RawFileHandler implements Serializable {
                 tileIds_[i] = convertToInt(byteSection);
                 
                 inputStream.read(byteSection);
-                //tile rotation ID
-                tileRotations_[i] = convertToInt(byteSection);
+                //Get rotations
+                savedRotations_[i] = convertToInt(byteSection);
                 
                 inputStream.read(byteSection);
                 //Number of lines for tile
@@ -329,8 +364,7 @@ public class RawFileHandler implements Serializable {
           }
        
     }
-    
-        
+       
     
     /**
      * Taken from java examples @ java2s.com, 
@@ -386,6 +420,11 @@ public class RawFileHandler implements Serializable {
         
     }
     
+    public static long convertToLong(byte[] array) {
+        ByteBuffer buffer = ByteBuffer.wrap(array);
+        return buffer.getLong();
+    }
+    
     
     /**
      * This is a handy conversion function that uses
@@ -395,7 +434,7 @@ public class RawFileHandler implements Serializable {
      * @param array, the byte array that is passed in containing 
      * hex values
      * @return a String with readable hex information.
-     */
+     */ 
     public static String convertToHex(byte[] array) {
         
         char[] hexArray = "0123456789ABCDEF".toCharArray();
@@ -412,8 +451,34 @@ public class RawFileHandler implements Serializable {
     }
     
     
+    /**
+     * This is a getter that is used to check file format validity.
+     * @return isFileGood_, a boolean value indicating the 
+     * status of file format health.
+     */
+    public static boolean getMazeFileCheck() {
+        return isFileGood_;
+    }
     
+    /**
+     * This is a getter that is primarily used by GameWindow to ensure that
+     * a default file has been loaded properly.
+     * @return is DefaultLoaded_, a boolean flag value.
+     */
+    public static boolean getDefaultCheck() {
+        return isDefaultLoaded_;
+    }
     
+    /**
+     * This is a getter for the hex values that are present in all valid
+     * game files.
+     * @return hexValues_, a string value for hex values present.
+     */
+    public static String getHexCheck() {
+        return hexValues_;
+    }
+    
+        
     /**
      * This is a getter for the tile index.
      * @return int object tileIndex_.
@@ -421,6 +486,14 @@ public class RawFileHandler implements Serializable {
     public int getTileIndex() {
 
         return tileIndex_;
+    }
+    
+    /**
+     * This is a getter for the new timer value.
+     * @return loadTime_, a long value parsed from a loaded file.
+     */
+    public long getLoadTime() {
+        return loadTime_;
     }
     
     /**
@@ -460,8 +533,9 @@ public class RawFileHandler implements Serializable {
      * @return int object tileRotations_.
      */
     public int[] getTileRotations() {
-        return tileRotations_;
+        return savedRotations_;
     }
+    
     
     
     public void setFileName(File fileName) {
@@ -469,5 +543,24 @@ public class RawFileHandler implements Serializable {
         fileName_ = fileName;
         
     } 
+    
+    /**
+     * This is a setter used to reset the status of isFileGood_ after a bad file load.
+     * @param status, a boolean value passed through from GameWindow.
+     */
+    public static void setMazeFileCheck(boolean status) {
+        
+        isFileGood_ = status;
+    }
+    
+    /**
+     * This is a setter primarily used by GameWindow that flags 
+     * if a default file has been loaded or not.
+     * @param status, a boolean value passed through from GameWindow.
+     */
+    public static void setDefaultCheck(boolean status) {
+        isDefaultLoaded_ = status;
+    }
+    
 };
 
