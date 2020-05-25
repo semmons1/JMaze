@@ -83,7 +83,8 @@ public class RawFileHandler implements Serializable {
                     "File Not Found", JOptionPane.ERROR_MESSAGE);
             isFileGood_ = false;
                                
-        } else {
+        } 
+        else if (fileName.exists()) {
             
             setFileName(fileName);
             parseBytes();

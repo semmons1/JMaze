@@ -33,7 +33,7 @@ public class WinCheck implements Serializable {
     private static boolean isMatched_ = false;
     
     private static SimpleDateFormat simpleDateFormat_ = new SimpleDateFormat("KK:mm:ss");
-    
+        
     private static final long serialVersionUID = 1;
     
     
@@ -65,6 +65,7 @@ public class WinCheck implements Serializable {
         if(isMatched_) {
             
             Clock.setGoTime(false);
+            simpleDateFormat_.setTimeZone(TimeZone.getTimeZone("GMT"));
             JOptionPane.showMessageDialog(null, "Congrats! You won the Game! Your time was " + 
                     simpleDateFormat_.format(Clock.getCurrentTime()),"Game Won", JOptionPane.INFORMATION_MESSAGE);
             GameWindow.setChanged(false);

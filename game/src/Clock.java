@@ -11,6 +11,7 @@ import javax.swing.*;
 import javax.swing.Timer;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.util.TimeZone;
 import java.awt.*;
 import java.awt.event.*;
 /**
@@ -32,7 +33,7 @@ public class Clock implements Serializable {
     private final JLabel timePanel_ = new JLabel();
     //Magic number needed to format the default hour value in SDF to appear as though
     //it starts at 0
-    private static long capturedTime_ = 25200000;
+    private static long capturedTime_ = 0;
     
     private static boolean isGoTime_ = false;
           
@@ -44,6 +45,7 @@ public class Clock implements Serializable {
     public Clock() {
         Clock.ClockActions clockStart = new Clock.ClockActions();
         timePanel_.setForeground(Color.WHITE);
+        simpleDateFormat_.setTimeZone(TimeZone.getTimeZone("GMT"));
         clockStart.startTimer();
               
     }

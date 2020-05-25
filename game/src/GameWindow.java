@@ -178,7 +178,7 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
                 cell_. setBorder(BorderFactory.createLineBorder(Color.BLACK));
             }
             //Set timer to 00:00:00
-            Clock.setCurrentTime(25200000);
+            Clock.setCurrentTime(0);
             Clock.setGoTime(false);
             revalidate();
             repaint();    
@@ -221,6 +221,12 @@ public class GameWindow extends JFrame implements ActionListener, Serializable {
                 //Send file to be loaded to the RawFileHandler constructor
                 //for parsing.
                 File fileToLoad = fileChooser.getSelectedFile();
+                
+                //For if a junk filename is given.
+                if (!fileToLoad.exists()) {
+                    fileOptions();
+                    return;
+                }
                 new RawFileHandler(fileToLoad);
                 //Check formatting
                 if (RawFileHandler.getHexCheck().contentEquals("CAFEBEEF")) {
